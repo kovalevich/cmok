@@ -4,6 +4,8 @@ import itertools as it
 import datetime
 import re
 import crypt
+import time
+from Queue import Queue
 
 # import only system from os 
 from os import system, name 
@@ -17,13 +19,15 @@ class Cmok():
 		self.__status = 0
 		self.__wordlist = None
 		self.__symbols = ''
-		self.__start_time = '' 
-		self.__end_time = ''
+		self.__start_time = datetime.datetime.now() 
+		self.__end_time = datetime.datetime.now()
 		self.__history = ''
 		self.__max_l = maxl
 		self.__min_l = minl
 		self.__hash = Hash()
 		self.__word = ''
+		self.__last_display_time = time.time()
+		self.__words = Queue()
 
 		# пытаемся сконвертировать хеш сначала напрямую, потом из файла
 		res = re.split(r'\$', _hash)
@@ -38,15 +42,19 @@ class Cmok():
 					break;
 
 	def ready(self):
+		self.__status = 3;
 		return True;
 
-	def run(self):
-		self.dysplay()
-		if self.__wordlist is not None:
-			self.bruteforce_by_wordlist()
-
-		self.bruteforce()
-		self.dysplay()
+	def generator(self):
+		self.add_history("Начинаю гененировать словарь из строки {}".format(self.__symbols))
+		for l in range(self.__min_l, self.__max_l + 1):
+			all = it.product(self.__symbols, repeat = l)
+			for p in all:
+				if self.__status == 1: return True
+				if self.__words.qsize() > 1000: time.sleep(1)
+				self.__words.put(''.join(p))
+		for _ in xrange(30): self.__words.put(None)
+		self.add_history("Словарь сгенерирован")
 
 	def to_string(self):
 		view = '=================================================\n'
@@ -59,6 +67,12 @@ class Cmok():
 		view += '\n'
 		return view
 
+	def status(self):
+		return self.__status
+
+	def count_words(self):
+		return self.__words.qsize()
+
 	def set_wordlist(self, wordlist):
 		self.__wordlist = wordlist
 
@@ -68,15 +82,20 @@ class Cmok():
 	def add_history(self, text):
 		today = datetime.datetime.today()
 		self.__history += "# {} | {}\n".format(today.strftime("%d-%m-%Y-%H.%M.%S"), text)
+		print("# {}".format(text))
 
-	def check(self):
-		self.iteration()
-		self.dysplay()
-		if sha512(self.__word, self.__hash.salt) == self.__hash.to_string():
-			self.__status = 1
-			self.add_history('Найден пароль: {}'.format(self.__word))
-			return True
-		else: return False
+	def check(self, generator):
+		while self.__status == 3:
+			word = self.__words.get()
+			if word == None and not generator.is_alive(): break
+			if word == None: continue
+			self.iteration()
+			self.__word = word
+			if sha512(word, self.__hash.salt) == self.__hash.to_string():
+				self.__status = 1
+				self.add_history('Найден пароль: {}'.format(word))
+				break
+			self.__words.task_done()
 
 	def add_symbols(self, symbols):
 		self.__symbols += symbols
@@ -130,13 +149,17 @@ class Cmok():
 		if self.__status == 4:
 			return 'Идет поиск перебором по символам {}'.format(self.__symbols)
 
-	def dysplay(self):
-		clear_dysplay()
-		print(self.__history)
-		print('**********')
-		print(self.status())
-		print('Всего попыток: {}'.format(self.__iterations))
+	def display(self):
+		if time.time() - self.__last_display_time < 30:
+			return False
+		work_time = datetime.datetime.now() - self.__start_time
+		#clear_dysplay()
+		#print(self.__history)
+		#print('**********')
+		#print(self.status())
+		#print('Всего попыток: {} за {}'.format(self.__iterations, work_time))
 		colored(self.__word, bcolors.WARNING)
+		self.__last_display_time = time.time()
 
 class Hash:
 	"""docstring for Hash"""
