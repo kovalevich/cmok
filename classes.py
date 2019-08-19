@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import itertools as it
-import datetime
+from datetime import datetime
 import re
 import crypt
 import time
+import io
 from Queue import Queue
 
 # import only system from os 
@@ -12,16 +13,16 @@ from os import system, name
 
 
 # класс цмока
-class Cmok():
-	"""docstring for Cmok"""
+class Cmok:
+	
 	def __init__(self, _hash, minl, maxl):
 		self.__iterations = 0
-		self.__status = 0
 		self.__wordlist = None
 		self.__symbols = ''
-		self.__start_time = datetime.datetime.now() 
-		self.__end_time = datetime.datetime.now()
-		self.__history = ''
+		self.__status = 0
+		self.__start_time = datetime.now() 
+		self.__end_time = datetime.now()
+		self.__log = {}
 		self.__max_l = maxl
 		self.__min_l = minl
 		self.__hash = Hash()
@@ -40,35 +41,39 @@ class Cmok():
 				if len(res) > 2:
 					self.__hash = Hash(res[1], res[2], res[3])
 					break;
+		self.__add_log("Find hash: {}".format(self.__hash))
 
 	def ready(self):
 		self.__status = 3;
 		return True;
 
 	def generator(self):
-		self.add_history("Начинаю гененировать словарь из строки {}".format(self.__symbols))
+		self.__add_log("Start generator from {}".format(self.__symbols).decode())
 		for l in range(self.__min_l, self.__max_l + 1):
 			all = it.product(self.__symbols, repeat = l)
 			for p in all:
-				if self.__status == 1: return True
+				if self.__status < 3: return True
 				if self.__words.qsize() > 1000: time.sleep(1)
 				self.__words.put(''.join(p))
 		for _ in xrange(30): self.__words.put(None)
-		self.add_history("Словарь сгенерирован")
+		self.__add_log("Generator finish {}".format(self.__timer()))
 
-	def to_string(self):
-		view = '=================================================\n'
-		view += self.__hash.to_string()
+	def __str__(self):
+		view = 'CMOK=================================================\n'
 		view += '\n'
 		view += self.__history
 		view += self.status()
 		view += '\n'
-		view += self.__word
+		return "{}".format(view)
+	
+	def __unicode__(self):
+		view = '=================================================\n'
+		view += str(self.__hash)
 		view += '\n'
-		return view
-
-	def status(self):
-		return self.__status
+		view += self.__history
+		view += self.status()
+		view += '\n'
+		return u"{}".format(view)
 
 	def count_words(self):
 		return self.__words.qsize()
@@ -78,11 +83,14 @@ class Cmok():
 
 	def iteration(self):
 		self.__iterations += 1
+		
+	def logs(self): return self.__log
 
-	def add_history(self, text):
-		today = datetime.datetime.today()
-		self.__history += "# {} | {}\n".format(today.strftime("%d-%m-%Y-%H.%M.%S"), text)
+	def __add_log(self, text):
+		self.__log[datetime.now()] = text
 		print("# {}".format(text))
+	
+	def add_log(self, text): self.__add_log(text)
 
 	def check(self, generator):
 		while self.__status == 3:
@@ -91,53 +99,18 @@ class Cmok():
 			if word == None: continue
 			self.iteration()
 			self.__word = word
-			if sha512(word, self.__hash.salt) == self.__hash.to_string():
+			if sha512(word, self.__hash.salt) == str(self.__hash):
 				self.__status = 1
-				self.add_history('Найден пароль: {}'.format(word))
+				self.__add_log('PASSWORD: {} find by {}'.format(word, self.__timer()))			
 				break
 			self.__words.task_done()
+		if self.__status > 2: self.__status = 2
 
 	def add_symbols(self, symbols):
 		self.__symbols += symbols
 
-	# функция перебора по символам в строке symbols
-	def bruteforce (self):
-
-		# если пароль найден, ничего не делаем
-		if self.__status == 1:
-			return False
-
-		if len(self.__symbols) == 0:
-			self.add_history('Список символов для перебора пуст. Невозможно запустить цмока')
-			return False
-
-		self.__status = 4
-		self.add_history('Начинаю подбор пароля по символам из строки {}'.format(self.__symbols))
-
-		for l in range(self.__min_l, self.__max_l + 1):
-			all = it.permutations(self.__symbols, l)
-			for p in all:
-				self.__word = ''.join(p);
-				if self.check():
-					break;
-			if self.__status == 1:
-				break;
-
-	def bruteforce_by_wordlist(self):
-		# если пароль найден, ничего не делаем
-		if self.__status == 1:
-			return False
-
-		self.__status = 3
-		self.add_history('Начинаю подбор пароля по словарю')
-
-		list = self.__wordlist.read().splitlines()
-		for l in list:
-			self.__word = l
-			if self.check():
-				break;
-
-	def status(self):
+	def status(self, flag = False):
+		if flag: return self.__status
 		if self.__status == 0:
 			return 'Поиск не запущен'
 		if self.__status == 1:
@@ -146,20 +119,23 @@ class Cmok():
 			return 'Поиск завершен безуспешно :('
 		if self.__status == 3:
 			return 'Идет поиск по словарю'
-		if self.__status == 4:
-			return 'Идет поиск перебором по символам {}'.format(self.__symbols)
 
 	def display(self):
-		if time.time() - self.__last_display_time < 30:
+		if time.time() - self.__last_display_time < 10:
 			return False
-		work_time = datetime.datetime.now() - self.__start_time
-		#clear_dysplay()
-		#print(self.__history)
-		#print('**********')
-		#print(self.status())
-		#print('Всего попыток: {} за {}'.format(self.__iterations, work_time))
 		colored(self.__word, bcolors.WARNING)
 		self.__last_display_time = time.time()
+	
+	def __timer(self):
+		now = datetime.now()
+		return now - self.__start_time
+		
+	def write_log_in_file(self, file_name):
+		with io.open(file_name, "a") as out:
+			out.write(u"******************************************\n")
+			for date, log in self.__log.items():
+				#print("{} => {}\n".format(date, log))
+				out.write(u"{} => {}\n".format(date, log))
 
 class Hash:
 	"""docstring for Hash"""
@@ -170,9 +146,9 @@ class Hash:
 	
 	def __str__(self):
 		return '${}${}${}'.format(self.type, self.salt, self.hash)
-
-	def to_string(self):
-		return '${}${}${}'.format(self.type, self.salt, self.hash)
+	
+	def __unicode__(self):
+		return u'${}${}${}'.format(self.type, self.salt, self.hash)
 
 # функция хеширования
 def sha512 (word, salt):

@@ -3,9 +3,9 @@
 
 import argparse
 from classes import Cmok 
-import datetime
 import threading
 import time
+import io
 
 # ======================= settings
 
@@ -28,6 +28,7 @@ parser.add_argument('-m', help='Пользовательский набор си
 def main():
 
 	global COUNT_THREADS;
+	global LOG_FILE_NAME
 	
 	# получаем параметры из коммандной строки
 	args = parser.parse_args()
@@ -43,26 +44,28 @@ def main():
 
 	threads = []
 
-	thread_generator = threading.Thread(target=cmok.generator)
+	thread_generator = threading.Thread(target=cmok.generator, name="genereator")
 	thread_generator.start()
 
 	# создаем необходимое количество потоков
 	for i in xrange(COUNT_THREADS):
-		thread_ = threading.Thread(target=cmok.check, args = (thread_generator, ))
+		thread_ = threading.Thread(target=cmok.check, name="check-{}".format(i), args = (thread_generator, ))
 		thread_.start()
 		threads.append(thread_)
-		cmok.add_history("Запускаю перебор в потоке #{}".format(i))
+		cmok.add_log("Start Cmok in thread #{}".format(thread_.getName()))
 
 	cmok.display()
 
 	while threading.active_count() > 1:
 		cmok.display()
-		if cmok.status() == 1: 
-			for t in threads:
-				t.join()
+		if cmok.status(True) < 3:
+                 thread_generator.join()
+                 for t in threads:
+                     t.join()
 		time.sleep(1)
 
 	cmok.display()
+	cmok.write_log_in_file(LOG_FILE_NAME)
 
 def check(name):
 	print('thread {} start'.format(name))
@@ -70,6 +73,9 @@ def check(name):
 	print('thread {} fin'.format(name))
 
 def log(text):
+	global LOG_FILE_NAME
+	with io.open(LOG_FILE_NAME, "a", encoding="utf-8") as out:
+		out.write(u"{}\n".format(text))
 	return True
 
 main()
