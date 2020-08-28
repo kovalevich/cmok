@@ -68,10 +68,11 @@ class Cmok:
         self.__word = ''
 
         # настройки логирования
-        logging.basicConfig(filename='cmok.log', filemode='a', format='%(asctime)s - %(message)s', level=logging.DEBUG)
+        logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.DEBUG)
 
         # пытаемся сконвертировать хеш сначала напрямую, потом из файла
-        res = _hash.split('$')
+        res = re.split(r'\$', _hash)
+        print(res)
         if len(res) > 2:
             self.__hash = Hash(res[1], res[2], res[3])
         else:
