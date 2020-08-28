@@ -88,12 +88,12 @@ class Cmok:
 
     def run(self):
         logging.info(f'Начало работы по {self.__hash}')
-        self.display()
+        #self.display()
         if self.__wordlist is not None:
             self.bruteforce_by_wordlist()
 
         self.bruteforce()
-        self.display()
+        #self.display()
 
     def __str__(self):
         return f'Cmok: symbols({self.__symbols})'
@@ -106,7 +106,7 @@ class Cmok:
 
     def check(self):
         self.iteration()
-        self.display()
+        #self.display()
         if sha512(self.__word, self.__hash.salt) == str(self.__hash):
             self.__status = 1
             logging.info('Найден пароль: {}'.format(self.__word))
