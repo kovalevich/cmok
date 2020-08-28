@@ -52,10 +52,10 @@ class Color:
 
 
 # класс цмока
-class Cmok():
+class Cmok:
     """docstring for Cmok"""
 
-    def __init__(self, _hash, minl, maxl):
+    def __init__(self, _hash, minl=3, maxl=4):
         self.__iterations = 0
         self.__status = 0
         self.__wordlist = None
