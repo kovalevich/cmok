@@ -4,6 +4,11 @@
 import argparse
 from classes import Cmok
 import logging
+from classes import Bot
+
+TOKEN = '983511418:AAHNxHWuQvJfAxvmDelinu5F8lGJXo1ryVc'
+
+bot = Bot(TOKEN)
 
 parser = argparse.ArgumentParser(description='Скрипт для брутфорса хешей sha-512')
 parser.add_argument('hash', metavar='HASH', help='Хеш искомого пароля в кавычках, или путь к файлу с хешем')
@@ -18,7 +23,7 @@ parser.add_argument('-m', help='Пользовательский набор си
 
 args = parser.parse_args()
 
-cmok = Cmok(args.hash, args.min, args.max)
+cmok = Cmok(args.hash, bot, args.min, args.max)
 
 # начало работы программы
 if cmok.ready():

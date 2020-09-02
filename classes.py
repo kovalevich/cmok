@@ -1,12 +1,51 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import itertools as it
-import re
 import crypt
+import itertools as it
 import logging
-
-# import only system from os 
+import re
+# import only system from os
 from os import system, name
+
+import json
+import requests
+
+
+class Bot:
+
+    def __init__(self, token):
+        self.__token = token
+        self.__api_url = "https://api.telegram.org/bot{}/".format(token)
+        self.__chat_id = '280350002'
+
+    def get_updates(self, offset=None, timeout=30):
+        method = 'getUpdates'
+        params = {'timeout': timeout, 'offset': offset}
+        # resp = requests.get(self.api_url + method + '?timeout={}&offset={}'.format(params['timeout'], params['offset']))
+        # resp = requests.get(self.__api_url + method, params)
+        # result_json = resp.json()['result']
+
+        data = requests.get(url=self.__api_url + method, params=params)
+        binary = data.content
+        output = json.loads(binary)['result']
+        return output
+
+    def send_message(self, text):
+        if self.__chat_id is None:
+            return False
+        params = {'chat_id': self.__chat_id, 'text': text}
+        method = 'sendMessage'
+        resp = requests.post(self.__api_url + method, params)
+        return resp
+
+    def get_last_update(self):
+        get_result = self.get_updates()
+
+        if len(get_result) > 0:
+            last_update = get_result[-1]
+        else:
+            last_update = get_result[len(get_result)]
+        return last_update
 
 
 class Hash:
@@ -22,7 +61,6 @@ class Hash:
 
 
 class Color:
-
     """Класс для колеровки текста в терминале"""
 
     HEADER = '\033[95m'
@@ -55,7 +93,7 @@ class Color:
 class Cmok:
     """docstring for Cmok"""
 
-    def __init__(self, _hash, minl=3, maxl=4):
+    def __init__(self, _hash, bot: Bot, minl=3, maxl=4):
         self.__iterations = 0
         self.__status = 0
         self.__wordlist = None
@@ -66,6 +104,7 @@ class Cmok:
         self.__min_l = minl
         self.__hash = None
         self.__word = ''
+        self.__bot = bot
 
         # настройки логирования
         logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.DEBUG)
@@ -83,17 +122,21 @@ class Cmok:
                     self.__hash = Hash(res[1], res[2], res[3])
                     break
 
+    def log(self, text):
+        self.__bot.send_message(text)
+        logging.info(text)
+
     def ready(self):
         return True if self.__hash is not None else False
 
     def run(self):
-        logging.info(f'Начало работы по {self.__hash}')
-        #self.display()
+        self.log(f'Начало работы по {self.__hash}')
+        # self.display()
         if self.__wordlist is not None:
             self.bruteforce_by_wordlist()
 
         self.bruteforce()
-        #self.display()
+        # self.display()
 
     def __str__(self):
         return f'Cmok: symbols({self.__symbols})'
@@ -106,10 +149,10 @@ class Cmok:
 
     def check(self):
         self.iteration()
-        #self.display()
+        # self.display()
         if sha512(self.__word, self.__hash.salt) == str(self.__hash):
             self.__status = 1
-            logging.info('Найден пароль: {}'.format(self.__word))
+            self.log('Найден пароль: {}'.format(self.__word))
             return True
         else:
             return False
@@ -129,9 +172,10 @@ class Cmok:
             return False
 
         self.__status = 4
-        logging.info('Начинаю подбор пароля по символам из строки {}'.format(self.__symbols))
+        self.log('Начинаю подбор пароля по символам из строки {}'.format(self.__symbols))
 
         for pass_len in range(self.__min_l, self.__max_l + 1):
+            self.log(f'Начинаю подбор пароля длиной {pass_len}')
             set_words = it.permutations(self.__symbols, pass_len)
             for word in set_words:
                 self.__word = ''.join(word)
@@ -146,7 +190,7 @@ class Cmok:
             return False
 
         self.__status = 3
-        logging.info(f'Начинаю подбор пароля по словарю')
+        self.log(f'Начинаю подбор пароля по словарю')
 
         list_ = self.__wordlist.read().splitlines()
         for word in list_:
