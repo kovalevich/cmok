@@ -1,1 +1,1 @@
-worker: python cmok.py -min 1 -max 8 -l -n -u 'pi:$6$GMVM/AEI$Q1KRb0JEj9LdVi1or3kbc7U5f/86J0QjGpBx/rn78rI5RuDVhadCiYnAtSO7Mnd9GWRF62ModMWPxfoQOp29N1'
+worker: python cmok.py -min 5 -max 8 -l -n 'pi:$6$GMVM/AEI$Q1KRb0JEj9LdVi1or3kbc7U5f/86J0QjGpBx/rn78rI5RuDVhadCiYnAtSO7Mnd9GWRF62ModMWPxfoQOp29N1'

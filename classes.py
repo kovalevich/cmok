@@ -8,6 +8,8 @@ import re
 from os import system, name
 
 import json
+import random
+
 import requests
 
 
@@ -21,10 +23,6 @@ class Bot:
     def get_updates(self, offset=None, timeout=30):
         method = 'getUpdates'
         params = {'timeout': timeout, 'offset': offset}
-        # resp = requests.get(self.api_url + method + '?timeout={}&offset={}'.format(params['timeout'], params['offset']))
-        # resp = requests.get(self.__api_url + method, params)
-        # result_json = resp.json()['result']
-
         data = requests.get(url=self.__api_url + method, params=params)
         binary = data.content
         output = json.loads(binary)['result']
@@ -111,7 +109,7 @@ class Cmok:
 
         # пытаемся сконвертировать хеш сначала напрямую, потом из файла
         res = re.split(r'\$', _hash)
-        print(res)
+
         if len(res) > 2:
             self.__hash = Hash(res[1], res[2], res[3])
         else:
@@ -159,6 +157,7 @@ class Cmok:
 
     def add_symbols(self, symbols):
         self.__symbols += symbols
+        self.__symbols = str_shuffle(self.__symbols)
 
     # функция перебора по символам в строке symbols
     def bruteforce(self):
@@ -222,6 +221,12 @@ class Cmok:
 def sha512(word, salt):
     prefix = '$6$'
     return crypt.crypt(word, prefix + salt)
+
+
+def str_shuffle(s: str) -> str:
+    lst = list(s)
+    random.shuffle(lst)
+    return ''.join(lst)
 
 
 # define our clear function 
